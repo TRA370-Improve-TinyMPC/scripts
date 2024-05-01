@@ -42,13 +42,13 @@ from cflib.utils import uri_helper
 import csv
 import matplotlib.pyplot as plt
 import numpy as np
-from traj_fig8_single import trajectory_points
+# from traj_fig8_single import trajectory_points
 import datetime
 # URI to the Crazyflie to connect to
 uri = uri_helper.uri_from_env(default='radio://0/90/2M')
 HEIGHT=0.4
 
-from crazyflieLog import start_pose_log, pose_logs, outputLogs
+from crazyflieLog import start_pose_log, start_motor_log, outputLogs
 
 
 def upload_trajectory(cf, trajectory_id, trajectory):
@@ -59,7 +59,6 @@ def upload_trajectory(cf, trajectory_id, trajectory):
     for row in trajectory:
         duration = row[0]
         x = Poly4D.Poly(row[1:9])
-        print(x)
         y = Poly4D.Poly(row[9:17])
         z = Poly4D.Poly(row[17:25])
         yaw = Poly4D.Poly(row[25:33])
@@ -115,30 +114,32 @@ if __name__ == '__main__':
     cflib.crtp.init_drivers()
     trajectory=csv_to_array(sys.argv[1])
     time.sleep(5)
-    x_ref = np.array([point[0] for point in trajectory_points])
-    y_ref = np.array([point[1] for point in trajectory_points])
+    # x_ref = np.array([point[0] for point in trajectory_points])
+    # y_ref = np.array([point[1] for point in trajectory_points])
     with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
         cf = scf.cf
         trajectory_id = 1
         duration = upload_trajectory(cf, trajectory_id, trajectory)
         cf.param.set_value('stabilizer.controller', '1')
+        # if TINYMPC==True:
+        #     cf.param.set_value('stabilizer.controller', '5')
+        pose_log=start_pose_log(cf)
+        motor_log=start_motor_log(cf)
         take_off(cf)
         go_to(cf, 0, 0, HEIGHT, 1.0)
-        if TINYMPC==True:
-            cf.param.set_value('stabilizer.controller', '5')
-        pose_log=start_pose_log(cf)
-        run_sequence(cf, trajectory_id, duration, 1)
+        # run_sequence(cf, trajectory_id, duration, 1)
+        pose_log.stop()
+        motor_log.stop()
         cf.param.set_value('stabilizer.controller', '1')
         land(cf)
-        pose_log.stop()
 
     outputLogs(startTime)
-    x=[log.x for log in pose_logs]
-    y=[log.y for log in pose_logs]
-    if TINYMPC==True:
-        plt.plot(x, y, label="tinympc")
-    else:
-        plt.plot(x, y, label="pid")
-    plt.plot(x_ref, y_ref, label="ground truth")
-    plt.legend()
-    plt.show()
+    # x=[log.x for log in pose_logs]
+    # y=[log.y for log in pose_logs]
+    # if TINYMPC==True:
+    #     plt.plot(x, y, label="tinympc")
+    # else:
+    #     plt.plot(x, y, label="pid")
+    # plt.plot(x_ref, y_ref, label="ground truth")
+    # plt.legend()
+    # plt.show()
