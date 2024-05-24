@@ -40,7 +40,7 @@ from cflib.crazyflie.mem import Poly4D
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.utils import uri_helper
 import csv
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 # from traj_fig8_single import trajectory_points
 import datetime
@@ -48,7 +48,7 @@ import datetime
 uri = uri_helper.uri_from_env(default='radio://0/90/2M')
 HEIGHT=0.4
 
-from crazyflieLog import start_pose_log, start_motor_log, outputLogs
+from crazyflieLog import start_pose_log, start_motor_log, outputLogs, pose_logs
 
 
 def upload_trajectory(cf, trajectory_id, trajectory):
@@ -105,9 +105,10 @@ def go_to(cf, x, y, z, duration):
 
 
 
-TINYMPC=True
+TINYMPC=False
+trials=3
 if __name__ == '__main__':
-    if len(sys.argv) !=2:
+    if len(sys.argv) >2:
         print("Usage: python3 autonomous_sequence.py [polynomials.csv]")
         exit()
     startTime=datetime.datetime.now()
@@ -121,19 +122,30 @@ if __name__ == '__main__':
         trajectory_id = 1
         duration = upload_trajectory(cf, trajectory_id, trajectory)
         cf.param.set_value('stabilizer.controller', '1')
-        # if TINYMPC==True:
-        #     cf.param.set_value('stabilizer.controller', '5')
-        pose_log=start_pose_log(cf)
-        motor_log=start_motor_log(cf)
         take_off(cf)
         go_to(cf, 0, 0, HEIGHT, 1.0)
-        # run_sequence(cf, trajectory_id, duration, 1)
+        if TINYMPC==True:
+            cf.param.set_value('stabilizer.controller', '5')
+        pose_log=start_pose_log(cf)
+        motor_log=start_motor_log(cf)
+        if len(sys.argv)==1: #hover for 10 seconds
+            go_to(cf, 0, 0, HEIGHT, 1.0)
+            time.sleep(10)
+        else: #do trajectory in polynomials.csv
+            for i in range(trials):
+                run_sequence(cf, trajectory_id, duration, 1)
         pose_log.stop()
         motor_log.stop()
         cf.param.set_value('stabilizer.controller', '1')
+        go_to(cf, 0, 0, HEIGHT, 1.0)
         land(cf)
 
-    outputLogs(startTime)
+    outputLogs(startTime, TINYMPC)
+    x_ref = np.array([pose_log.x for pose_log in pose_logs])
+    y_ref = np.array([pose_log.y for pose_log in pose_logs])
+    import matplotlib.pyplot as plt
+    plt.plot(x_ref,y_ref)
+    plt.show()
     # x=[log.x for log in pose_logs]
     # y=[log.y for log in pose_logs]
     # if TINYMPC==True:

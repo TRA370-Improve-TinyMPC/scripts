@@ -6,7 +6,7 @@ import os
 
 def polynomial(x, y, num_segments):
 
-    x_segments = np.array_split(x, num_segments)
+    x_segments = np.array_split(x, num_segments) #the points need to be splitted depending on how much the points can fit in num_segments polynomials
     y_segments = np.array_split(y, num_segments)
 
     t_curve_segments = []
@@ -53,16 +53,8 @@ def write_to_file(file_path, segments, num_segments, duration):
     with open(file_path, 'w') as file:
         for segment in segments:
             file.write(str('{:.6f}'.format(duration/num_segments))+','+','.join(str('{:.6f}'.format(coeff)) for coeff in segment) + '\n')
-        
-if __name__ == "__main__":
-    if len(sys.argv) !=5:
-        print("Usage: python3 generatePolynomials.py [input_coordinates.py] [total_duration] [number_of_polynomials] [output_polynomials.csv]")
-        exit()
-    inputPath=sys.argv[1]
-    duration=int(sys.argv[2])
-    num_segments = int(sys.argv[3])
-    output=sys.argv[4]
 
+def loadPoints(inputPath):
     sys.path.append(os.path.dirname(inputPath))
     module_name = os.path.splitext(os.path.basename(inputPath))[0]
     try:
@@ -73,6 +65,18 @@ if __name__ == "__main__":
     data=np.array(module.trajectory_points)
     x = data[:, 0]
     y = data[:, 1]
+    return x,y
+
+if __name__ == "__main__":
+    if len(sys.argv) !=5:
+        print("Usage: python3 generatePolynomials.py [input_coordinates.py] [total_duration] [number_of_polynomials] [output_polynomials.csv]")
+        exit()
+    inputPath=sys.argv[1]
+    duration=int(sys.argv[2])
+    num_segments = int(sys.argv[3])
+    output=sys.argv[4]
+    x,y=loadPoints(inputPath)
     segments, x_curve, y_curve=polynomial(x, y, num_segments)
+    print(segments)
     plot_trajectory(x, y, x_curve, y_curve)
     write_to_file(output, segments, num_segments, duration)

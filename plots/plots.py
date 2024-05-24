@@ -78,10 +78,15 @@ def extractData(poseDF, motorDF, firstLogLength, x_offset):
     m4=motorDF['motor.m4']
     return {'timestamps':timestamps,'x':x,'y':y,'vx':vx,'vy':vy,'qw':qw,'qx':qx,'rateRoll':rateRoll,'ratePitch':ratePitch,'rateYaw':rateYaw,'m1':m1,'m2':m2,'m3':m3,'m4':m4}
 
+def RMSE(x_ref, y_ref, x, y):
+    squared_errors = (x_ref - x)**2 + (y_ref - y)**2
+    return np.sqrt(np.mean(squared_errors))
 
+def normalize(array):
+    return (array-np.min(array))/(np.max(array)-np.min(array))
 
 if __name__ == "__main__":
-    selected="circle" #"figure8", "circle","hover"
+    selected="figure8" #"figure8", "circle","hover"
     if selected=='figure8':
         posePIDLogFile='logs/pid_pose_log_2024-05-08_15-08-47.csv'
         motorPIDLogFile='logs/pid_motor_log_2024-05-08_15-08-47.csv'
@@ -120,7 +125,7 @@ if __name__ == "__main__":
         pid_log=extractData(posePIDDF, motorPIDDF, firstLogLength, x_offset)
         tinympc_log=extractData(poseTINYMPCDF, motorTINYMPCDF, firstLogLength, x_offset)
         
-        fig1, (ax1)=plt.subplots(1) #compare XY
+        fig1, (ax1)=plt.subplots(1, dpi=150) #compare XY
         ax1.plot(x_ref,y_ref,label='Reference') 
         ax1.plot(pid_log['x'],pid_log['y'],label='PID')
         ax1.plot(tinympc_log['x'],tinympc_log['y'],label='TINYMPC')
@@ -128,7 +133,11 @@ if __name__ == "__main__":
         ax1.set_ylabel("Distance [m]")
         ax1.set_title("Trajectory")
         ax1.legend()
-        fig2, (ax2,ax3)=plt.subplots(2,1) #compare X
+        plt.tight_layout()
+        manager = plt.get_current_fig_manager()
+        manager.window.showMaximized()
+        fig1.savefig(f"{selected}.png")
+        fig2, (ax2,ax3)=plt.subplots(2,1, dpi=150) #compare X
         ax2.plot(pid_log['timestamps'],x_ref,label='Reference')
         ax2.plot(pid_log['timestamps'],pid_log['x'],label='PID')
         ax2.plot(pid_log['timestamps'],tinympc_log['x'],label='TINYMPC')
@@ -143,7 +152,42 @@ if __name__ == "__main__":
         ax3.set_ylabel("Distance [m]")
         ax3.set_title("Longitudinal Position")
         ax3.legend()
-    else:
+        plt.tight_layout()
+        manager = plt.get_current_fig_manager()
+        manager.window.showMaximized()
+        fig2.savefig(f"{selected}xy.png")
+        print(f"PID RMSE {RMSE(x_ref, y_ref, pid_log['x'],pid_log['y'])}")
+        print(f"TINYMPC RMSE {RMSE(x_ref, y_ref, tinympc_log['x'],tinympc_log['y'])}")
+
+        fig3,(ax4,ax5)=plt.subplots(2,1, dpi=150)
+        ax4.plot(pid_log['timestamps'], (pid_log['m1']),label='m1')
+        ax4.plot(pid_log['timestamps'], (pid_log['m2']),label='m2')
+        ax4.plot(pid_log['timestamps'], (pid_log['m3']),label='m3')
+        ax4.plot(pid_log['timestamps'], (pid_log['m4']),label='m4')
+        ax4.set_ylim([0, 65536])
+        ax4.set_title("Motor thrust for PID")
+        ax4.set_xlabel("Time [s]")
+        ax4.set_ylabel("Thrust")
+        ax4.legend()
+        ax5.plot(tinympc_log['timestamps'], (tinympc_log['m1']),label='m1')
+        ax5.plot(tinympc_log['timestamps'], (tinympc_log['m2']),label='m2')
+        ax5.plot(tinympc_log['timestamps'], (tinympc_log['m3']),label='m3')
+        ax5.plot(tinympc_log['timestamps'], (tinympc_log['m4']),label='m4')
+        ax5.set_ylim([0, 65536])
+        ax5.set_title("Motor thrust for TINYMPC")
+        ax5.set_xlabel("Time [s]")
+        ax5.set_ylabel("Thrust")
+        ax5.legend()
+        plt.tight_layout()
+        manager = plt.get_current_fig_manager()
+        manager.window.showMaximized()
+        fig3.savefig(f"{selected}Motor.png")
+        integral_pid=np.trapz(pid_log['m1'], pid_log['timestamps'])+np.trapz(pid_log['m2'], pid_log['timestamps'])+np.trapz(pid_log['m3'], pid_log['timestamps'])+np.trapz(pid_log['m4'], pid_log['timestamps'])
+        integral_tinympc=np.trapz(tinympc_log['m1'], tinympc_log['timestamps'])+np.trapz(tinympc_log['m2'], tinympc_log['timestamps'])+np.trapz(tinympc_log['m3'], tinympc_log['timestamps'])+np.trapz(tinympc_log['m4'], tinympc_log['timestamps'])
+        print(f"integral of motors pid: {integral_pid}")
+        print(f"integral of motors tinympc: {integral_tinympc}")
+        plt.rcParams.update({'font.size': 20})
+    else: # this is intended for the hover later on
         pid_log=extractData(posePIDDF, motorPIDDF, firstLogLength, x_offset)
         tinympc_log=extractData(poseTINYMPCDF, motorTINYMPCDF, firstLogLength, x_offset)
     plt.show()
